@@ -1,12 +1,11 @@
 # Importation des modules nécessaires
 import hashlib
 import json
+import sys
+from functions import *
 from flask import Flask, request, jsonify
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-
-# Liste des nœuds du réseau
-nodes = ["192.168.52.1"]
 
 # Messages de réponse pour l'authentification
 auth_failed = {"status": "error", "message": "Authentication failed"}
@@ -21,29 +20,12 @@ global public_keys, chain
 # Initialisation de l'application Flask
 app = Flask(__name__)
 
-
-# Fonction pour charger les données de la blockchain depuis un fichier
-def load_blockchain_data():
-    try:
-        with open('blockchain_data.json', 'r') as file:
-            json_data = json.load(file)
-            print("[*] Données de la blockchain récupérées")
-            return json_data
-    except FileNotFoundError:
-        print("[!] Impossible de récuperer les données de la blockchain arrêt du noeud....")
-        exit()
-
-
-# Fonction pour charger les clés publiques vérifiées depuis un fichier
-def load_verified_public_keys():
-    try:
-        with open('verified_public_keys.json', 'r') as file:
-            print("[*] Données des clés publiques récupérées")
-            return json.load(file)
-    except FileNotFoundError:
-        print("[!] Impossible de récuperer les données des clés publiques arrêt du noeud....")
-        exit()
-
+def authenticate_user():
+    data = request.json
+    if authenticate(data, public_keys):
+        return auth_succeed
+    else:
+        return auth_failed
 
 # Classe pour représenter un bloc dans la blockchain GeekCoin
 class GeekCoinBlock:
@@ -88,71 +70,21 @@ class Blockchain:
     def last_block(self):
         return self.chain[-1]
 
-
-# Fonction pour extraire les clés publiques depuis des données JSON
-def extract_public_keys(json_data):
-    public_keys_info = []
-
-    for identity in json_data['identities']:
-        name = identity['name']
-        public_key_lines = identity['public_key']
-
-        public_key = '\n'.join(public_key_lines)
-
-        public_keys_info.append({
-            'name': name,
-            'public_key': public_key
-        })
-
-    return public_keys_info
-
-
-# Fonction pour authentifier une demande
-def authenticate(data, approved_public_keys):
-    public_key_pem = data['public_key'].encode('utf-8')
-    signature = bytes.fromhex(data['signature'])
-    message = "authentication_request".encode('utf-8')
-    public_key = serialization.load_pem_public_key(public_key_pem)
-    for i in approved_public_keys['identities']:
-        current_public_key = i["public_key"]
-        if current_public_key != None:
-            current_public_key_encoded = b'\n'.join(map(bytes, [s.encode() for s in current_public_key]))
-            current_public_key_encoded += b'\n'
-            if current_public_key_encoded == public_key_pem:
-                try:
-                    public_key.verify(
-                        signature,
-                        message,
-                        padding.PSS(
-                            mgf=padding.MGF1(hashes.SHA256()),
-                            salt_length=padding.PSS.MAX_LENGTH
-                        ),
-                        hashes.SHA256()
-                    )
-                    return True
-                except:
-                    return False
-    return False
-
-
 # Route Flask pour obtenir la liste des blocs de la blockchain
 @app.route('/blockchain_list', methods=['GET'])
 def blockchain_data():
-    return chain
-
+    data=request
+    if authenticate(data, public_keys):
+        return jsonify(chain)
+    else:
+        return auth_failed
 
 # Route Flask pour obtenir la liste des clés publiques
 @app.route('/keys_list', methods=['GET'])
 def keys_data():
-    return public_keys
-
-
-# Route Flask pour l'authentification
-@app.route('/auth', methods=['POST'])
-def auth():
-    data = request.json
+    data=request
     if authenticate(data, public_keys):
-        return auth_succeed
+        return public_keys
     else:
         return auth_failed
 
@@ -163,4 +95,4 @@ if __name__ == "__main__":
     chain = load_blockchain_data()
     public_keys = load_verified_public_keys()
     print("[*] Noeud lancé")
-    app.run(debug=True)
+    app.run(debug=True,host="0.0.0.0",port=int(sys.argv[1]))
