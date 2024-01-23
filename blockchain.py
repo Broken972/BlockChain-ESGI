@@ -28,7 +28,7 @@ def authenticate_user():
         return auth_failed
 
 # Classe pour représenter un bloc dans la blockchain GeekCoin
-class GeekCoinBlock:
+class CoinBlock:
 
     def __init__(self, previous_block_hash, transaction_list):
         self.previous_block_hash = previous_block_hash
@@ -44,11 +44,11 @@ class Blockchain:
         self.generate_genesis_block()
 
     def generate_genesis_block(self):
-        self.chain.append(GeekCoinBlock("0", ['Genesis Block']))
+        self.chain.append(CoinBlock("0", ['Genesis Block']))
 
     def create_block_from_transaction(self, transaction_list):
         previous_block_hash = self.last_block.block_hash
-        self.chain.append(GeekCoinBlock(previous_block_hash, transaction_list))
+        self.chain.append(CoinBlock(previous_block_hash, transaction_list))
 
     def display_chain(self):
         for i in range(len(self.chain)):

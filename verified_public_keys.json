@@ -42,5 +42,19 @@
         "-----END PUBLIC KEY-----"
       ]
     }
+    {
+      "name": "AcerlorMittal DSF",
+      "public_key": [
+        "-----BEGIN PUBLIC KEY-----",
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxg0vJNft3xamzhzMOTZ8",
+        "05x8cOUpsGU6kobpwuJBqfnTlrVn7MO4oKznnlNJJMEGqHuzVxM4pFZZzdgftgi5",
+        "jHwX9BVZP+K4vKHy6jSwFYrvTMkCkogJA+r7UWr6bPCzyr5SEDEmfcrCiE4ChdPB",
+        "mklnS3ZlHIMyAJbMXb4/Yiqn+aNRvli8iGLNEie31549VjrkIUWH/IjQuVuoZsVM",
+        "SWhWdBU1pQFDirDAW/bSoOUjPPUs7W+i03kC7TEG/Rf3n0BLFiCYVt2jxMPA1Cl7",
+        "o3tOPR/uy3O5kOjNCsp0uYnGQvx613OchtyDls3KGhmtLc0wqggF1EFjI5EpDy95",
+        "jQIDAQAB",
+        "-----END PUBLIC KEY-----"
+      ]
+    }
   ]
 }
