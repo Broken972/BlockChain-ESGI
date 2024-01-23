@@ -67,7 +67,8 @@ def retrieve_blockchain():
     headers = init_headers(keys[0],keys[1])
     for host in boostrap_nodes:
         response = requests.get(f'http://{host}/blockchain_list', headers=headers)
-        if "error" in response:
+        print(response)
+        if "error" in response.text:
             print("[!] Le noeud n'est pas autorisé à rejoindre le réseau")
             exit()
         else:
