@@ -6,7 +6,7 @@ from functions import *
 from flask import Flask, request, jsonify
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-
+import os
 # Messages de réponse pour l'authentification
 auth_failed = {"status": "error", "message": "Authentication failed"}
 auth_succeed = {"status": "success", "message": "Authenticated successfully"}
@@ -95,4 +95,4 @@ if __name__ == "__main__":
     chain = load_blockchain_data()
     public_keys = load_verified_public_keys()
     print("[*] Noeud lancé")
-    app.run(debug=True,host="0.0.0.0",port=int(sys.argv[1]))
+    app.run(debug=True,host="0.0.0.0",port=os.environ.get('LISTEN_PORT'))
