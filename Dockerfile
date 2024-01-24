@@ -1,7 +1,7 @@
 FROM python:alpine3.19
 
 RUN apk update && \
-    apk add git openssh
+    apk add git openssh gcc
 
 RUN pip install --upgrade pip
 

@@ -1,0 +1,4 @@
+FROM tailscale/tailscale:v1.54.1
+COPY start-tailscale.sh /usr/bin/start-tailscale.sh
+RUN chmod +x /usr/bin/start-tailscale.sh
+CMD "start-tailscale.sh"
