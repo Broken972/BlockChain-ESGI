@@ -92,7 +92,12 @@ def keys_data():
 # Point d'entrée principal pour l'exécution de l'application
 if __name__ == "__main__":
     myblockchain = Blockchain()
-    chain = load_blockchain_data()
-    public_keys = load_verified_public_keys()
+    try:
+        chain = load_blockchain_data()
+        public_keys = load_verified_public_keys()
+    except Exception as error:
+        print("[!] Impossible de récuperer les données nécessaire arrêt")
+        print(error)
+        exit()
     print("[*] Noeud lancé")
     app.run(debug=True,host="0.0.0.0",port=os.environ.get('LISTEN_PORT'))

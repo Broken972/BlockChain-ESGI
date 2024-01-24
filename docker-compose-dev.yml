@@ -1,0 +1,13 @@
+services:
+  blockchain-esgi-dev:
+    build: 
+      context: .
+      dockerfile: Dockerfile-dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - "./code:/home/user/BlockChain-ESGI"
+    environment:
+      - NODE_NAME=Noeud-Principal-1
+      - BOOTSTRAP_NODE=192.168.14:4000"
+      - LISTEN_PORT=5000

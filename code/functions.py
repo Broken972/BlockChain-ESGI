@@ -23,7 +23,8 @@ def load_local_keys():
             private_key_pem = f.read()
             private_key = serialization.load_pem_private_key(private_key_pem, password=None)
         return public_key_pem,private_key
-    except:
+    except Exception as error:
+        print(error)
         print("[*] Une erreur est survenue lors de la lecture du fichier private_key ou public_key")
         exit()
 
