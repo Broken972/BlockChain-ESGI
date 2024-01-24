@@ -95,4 +95,4 @@ if __name__ == "__main__":
     chain = load_blockchain_data()
     public_keys = load_verified_public_keys()
     print("[*] Noeud lancé")
-    app.run(debug=True,host="0.0.0.0",port=os.environ['LISTEN_PORT'])
+    app.run(debug=True,host="0.0.0.0",port=os.environ.get('LISTEN_PORT'))

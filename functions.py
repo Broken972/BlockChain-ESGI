@@ -9,7 +9,7 @@ import base64
 import requests
 import os
 
-boostrap_node = [os.environ['BOOTSTRAP_NODE']]
+boostrap_node = [os.environ.get('BOOSTRAPE_NODE')]
 
 
 def load_local_keys():
@@ -41,7 +41,7 @@ def init_headers(public_key,private_key):
 
     headers={
         "User-Agent":"ESGI-Blockchain-Agent",
-        "Identity": os.environ['NODE_NAME'],
+        "Identity": os.environ.get('NODE_NAME'),
         "PublicKey": public_key_base64.decode(),
         "Signature": signature.hex(),
     }
