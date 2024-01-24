@@ -7,8 +7,9 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 import base64
 import requests
+import os
 
-boostrap_nodes = ["192.168.1.147:3000"]
+boostrap_node = [os.environ['BOOTSTRAP_NODE']]
 
 
 def load_local_keys():
@@ -40,7 +41,7 @@ def init_headers(public_key,private_key):
 
     headers={
         "User-Agent":"ESGI-Blockchain-Agent",
-        "Identity": "Noeud-Principal-1",
+        "Identity": os.environ['NODE_NAME'],
         "PublicKey": public_key_base64.decode(),
         "Signature": signature.hex(),
     }
