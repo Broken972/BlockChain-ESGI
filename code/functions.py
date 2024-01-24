@@ -42,7 +42,7 @@ def init_headers(public_key,private_key):
 
     headers={
         "User-Agent":"ESGI-Blockchain-Agent",
-        "Identity": os.environ.get('NODE_NAME'),
+        "Identity": os.environ.get('TAILSCALE_HOSTNAME'),
         "PublicKey": public_key_base64.decode(),
         "Signature": signature.hex(),
     }
@@ -90,7 +90,6 @@ def load_blockchain_data():
             return json_data
     except:
         print("[!] Impossible de récuperer les données de la blockchain, Tentative de récupération sur le noeud principal....")
-        retrieve_blockchain()
 
 
 # Fonction pour charger les clés publiques vérifiées depuis un fichier
@@ -101,7 +100,6 @@ def load_verified_public_keys():
             return json.load(file)
     except FileNotFoundError:
         print("[!] Impossible de récuperer les données des clés publiques, Tentative de récupération sur le noeud principal....")
-        retrieve_public_keys()
 
 # Fonction pour extraire les clés publiques depuis des données JSON
 def extract_public_keys(json_data):

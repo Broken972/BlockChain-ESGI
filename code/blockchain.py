@@ -3,10 +3,11 @@ import hashlib
 import json
 import sys
 from functions import *
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 import os
+import time
 # Messages de réponse pour l'authentification
 auth_failed = {"status": "error", "message": "Authentication failed"}
 auth_succeed = {"status": "success", "message": "Authenticated successfully"}
@@ -79,6 +80,18 @@ def blockchain_data():
     else:
         return auth_failed
 
+# Route Flask pour obtenir santé du node
+@app.route('/health', methods=['GET'])
+def blockchain():
+    try:
+        chain = load_blockchain_data()
+        public_keys = load_verified_public_keys()
+        return Response("{'Status':'Working as expected'}", status=200, mimetype='application/json')
+    except Exception as error:
+        print("[!] Impossible de récuperer les données nécessaire")
+        return Response("{'Status':'Error'}", status=500, mimetype='application/json')
+    
+
 # Route Flask pour obtenir la liste des clés publiques
 @app.route('/keys_list', methods=['GET'])
 def keys_data():
@@ -92,12 +105,22 @@ def keys_data():
 # Point d'entrée principal pour l'exécution de l'application
 if __name__ == "__main__":
     myblockchain = Blockchain()
-    try:
-        chain = load_blockchain_data()
-        public_keys = load_verified_public_keys()
-    except Exception as error:
-        print("[!] Impossible de récuperer les données nécessaire arrêt")
-        print(error)
-        exit()
+    while True:
+        time.sleep(10)
+        try:
+            load_blockchain_data()
+        except:
+            try:
+                chain = retrieve_blockchain()
+            except:
+                print("[*] Error retrieving blockchain")
+        try:
+            public_keys = load_verified_public_keys()
+        except:
+            try:
+                public_key = retrieve_public_keys()
+            except:
+                print("[*] Error retrieving public keys")
+        break
     print("[*] Noeud lancé")
     app.run(debug=True,host="0.0.0.0",port=os.environ.get('LISTEN_PORT'))
