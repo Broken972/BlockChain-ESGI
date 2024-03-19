@@ -3,6 +3,13 @@
   include_vars:
     file: vault.yml
 
+- name: Install docker-compose if it does not exist
+  apt:
+    name: docker-compose
+    state: present
+  become: true
+  become_user: root
+
 - name: Create a directory if it does not exist
   ansible.builtin.file:
     path: /dckfile/Blockchain-Node/github_keys
@@ -27,9 +34,22 @@
   become: true
   become_user: root
 
+- name: Check if project already cloned
+  stat:
+    path: '/dckfile/Blockchain-Node/BlockChain-ESGI'
+  register: directory_data
+
 - name: Clonage du projet 
   shell:
     cmd: GIT_SSH_COMMAND="ssh -i  /dckfile/Blockchain-Node/github_keys/id_rsa_github -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:Broken972/BlockChain-ESGI.git
     chdir: /dckfile/Blockchain-Node/
+  become: true
+  become_user: root
+  when: not directory_data.stat.exists
+
+- name: Lancement du noeud
+  shell:
+    cmd: "docker-compose up -d --build"
+    chdir: /dckfile/Blockchain-Node/BlockChain-ESGI
   become: true
   become_user: root

@@ -1,0 +1,32 @@
+---
+- name: Inclusion vault
+  include_vars:
+    file: vault.yml
+
+- name: Lancement du noeud
+  shell:
+    cmd: "docker-compose down"
+    chdir: /dckfile/Blockchain-Node/BlockChain-ESGI
+  become: true
+  become_user: root
+
+- name: Suppression du projet
+  shell:
+    cmd: "rm -rf /dckfile/Blockchain-Node/BlockChain-ESGI"
+  become: true
+  become_user: root
+
+- name: Clonage du projet 
+  shell:
+    cmd: GIT_SSH_COMMAND="ssh -i  /dckfile/Blockchain-Node/github_keys/id_rsa_github -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:Broken972/BlockChain-ESGI.git
+    chdir: /dckfile/Blockchain-Node/
+  become: true
+  become_user: root
+
+- name: Lancement du noeud
+  shell:
+    cmd: "docker-compose -f docker-compose-dev.yml up -d --build"
+    chdir: /dckfile/Blockchain-Node/BlockChain-ESGI
+  become: true
+  become_user: root
+...

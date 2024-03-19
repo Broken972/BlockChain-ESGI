@@ -22,6 +22,12 @@ Pour commencer à utiliser ce projet, suivez les étapes ci-dessous :
 
 Le dossier `smart-contract` contient un exemple de contrat intelligent pour la traçabilité des produits. Vous pouvez déployer ce contrat sur une blockchain Ethereum pour suivre la propriété et l'emplacement des produits.
 
+## Infos
+
+- La blockchain est semi-privée c'est à dire: Tout le monde peut la lire mais il y'a des permissions spécifiques pour les droits d'écritures
+
+- Les apis vont utiliser un JWT RS512 pour s'authentifier
+
 ## Defaut configuration BLOC
 
     {
