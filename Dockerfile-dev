@@ -19,6 +19,10 @@ COPY ./entrypoint-dev.sh /home/user/entrypoint-dev.sh
 
 RUN chown -R 1000:1000 /home/user/entrypoint-dev.sh
 
+COPY ./code/requirements.txt .
+
+RUN pip install -r requirements.txt
+
 USER user
 
 WORKDIR /home/user

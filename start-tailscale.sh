@@ -1,4 +1,4 @@
-#!/bin/ash
+#!/bin/bash
 random_id=$(cat /proc/sys/kernel/random/uuid)
 trap 'kill -TERM $PID' TERM INT
 echo "Starting Tailscale daemon"

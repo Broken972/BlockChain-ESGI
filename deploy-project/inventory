@@ -1,0 +1,6 @@
+[nodesgrp]
+node2 ansible_host=10.255.0.51 ansible_user=adm_noeud
+node3 ansible_host=10.255.0.52 ansible_user=adm_noeud
+
+[mastergrp]
+master1 ansible_host=10.255.0.50 ansible_user=adm_master

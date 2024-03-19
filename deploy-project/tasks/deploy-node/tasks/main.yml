@@ -1,0 +1,35 @@
+---
+- name: Inclusion vault
+  include_vars:
+    file: vault.yml
+
+- name: Create a directory if it does not exist
+  ansible.builtin.file:
+    path: /dckfile/Blockchain-Node/github_keys
+    state: directory
+    mode: '0755'
+  become: true
+  become_user: root
+
+- name: Depot des clés ssh pour cloner le projet
+  ansible.builtin.template:
+    src: templates/private-key.j2
+    dest: /dckfile/Blockchain-Node/github_keys/id_rsa_github
+    mode: '0600'
+  become: true
+  become_user: root
+
+- name: Depot des clés ssh pour cloner le projet
+  ansible.builtin.template:
+    src: templates/public-key.j2
+    dest: /dckfile/Blockchain-Node/github_keys/id_rsa_github.pub
+    mode: '0600'
+  become: true
+  become_user: root
+
+- name: Clonage du projet 
+  shell:
+    cmd: GIT_SSH_COMMAND="ssh -i  /dckfile/Blockchain-Node/github_keys/id_rsa_github -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:Broken972/BlockChain-ESGI.git
+    chdir: /dckfile/Blockchain-Node/
+  become: true
+  become_user: root

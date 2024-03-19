@@ -7,6 +7,8 @@ services:
     volumes:
       - "./code:/home/user/BlockChain-ESGI"
     network_mode: "service:tailscale"
+    depends_on: 
+      - tailscale
   tailscale:
     build:
       context: .
