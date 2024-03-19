@@ -47,5 +47,12 @@ Le dossier `smart-contract` contient un exemple de contrat intelligent pour la t
     ]
   },
   
+## Diagrams
 
+Diagramme du workflow de l'authentification d'un utilisateur à l'API
 
+![Workflow_Auth_API](./images/workflow_auth_api.jpg)
+
+Diagramme de l'architecture de l'API du VPN
+
+![Archi_VPN_APIs](./images/archi_vpn_api.png)
