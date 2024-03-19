@@ -86,10 +86,12 @@ def blockchain():
     try:
         chain = load_blockchain_data()
         public_keys = load_verified_public_keys()
-        return Response("{'Status':'Working as expected'}", status=200, mimetype='application/json')
+        # Use jsonify to automatically convert the dictionary to a JSON response
+        return jsonify({'Status': 'Working as expected'}), 200
     except Exception as error:
         print("[!] Impossible de récuperer les données nécessaire")
-        return Response("{'Status':'Error'}", status=500, mimetype='application/json')
+        # Similarly, use jsonify for the error response
+        return jsonify({'Status': 'Error'}), 500
     
 
 # Route Flask pour obtenir la liste des clés publiques
