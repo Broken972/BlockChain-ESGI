@@ -4,6 +4,7 @@ import json
 import sys
 from functions import *
 from flask import Flask, request, jsonify, Response
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 import os
@@ -12,7 +13,7 @@ import time
 auth_failed = {"status": "error", "message": "Authentication failed"}
 auth_succeed = {"status": "success", "message": "Authenticated successfully"}
 
-# Indicateur si le nœud actuel est un nœud de démarrage (bootstrap)
+# Indicateur si le node actuel est un node de démarrage (bootstrap)
 is_bootstrap_node = True
 
 # Informations globales sur les clés publiques et la chaîne de blocs
@@ -20,7 +21,8 @@ global public_keys, chain
 
 # Initialisation de l'application Flask
 app = Flask(__name__)
-
+app.config['SECRET_KEY'] = 'super-secret'
+jwt = JWTManager(app)
 def authenticate_user():
     data = request.json
     if authenticate(data, public_keys):
@@ -86,11 +88,9 @@ def blockchain():
     try:
         chain = load_blockchain_data()
         public_keys = load_verified_public_keys()
-        # Use jsonify to automatically convert the dictionary to a JSON response
         return jsonify({'Status': 'Working as expected'}), 200
     except Exception as error:
         print("[!] Impossible de récuperer les données nécessaire")
-        # Similarly, use jsonify for the error response
         return jsonify({'Status': 'Error'}), 500
     
 
@@ -103,12 +103,28 @@ def keys_data():
     else:
         return auth_failed
 
+@app.route('/auth_api', methods=['POST'])
+def auth_api():
+    data = request.form
+    client_public_key = request.form.get('public_key')
+    client_signature = request.form.get('signature')
+    if client_public_key is None:
+        return jsonify({'Error': 'No public key provided'}), 400
+    if client_signature is None:
+        return jsonify({'Error': 'No signature provided'}), 400
+    token = authenticate_api(client_public_key, client_signature, public_keys,app)
+    return jsonify({'Token:': f'{token}'}), 200
+    #return jsonify({'Status': client_public_key}), 200
+    # data=request
+    # if authenticate(data, public_keys):
+    #     return public_keys
+    # else:
+    #     return auth_failed
 
 # Point d'entrée principal pour l'exécution de l'application
 if __name__ == "__main__":
     myblockchain = Blockchain()
     while True:
-        time.sleep(10)
         try:
             load_blockchain_data()
         except:
