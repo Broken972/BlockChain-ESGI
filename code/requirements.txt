@@ -2,3 +2,4 @@ flask
 Cryptography
 requests
 tailscale
+flask_jwt_extended
