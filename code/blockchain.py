@@ -8,6 +8,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from datetime import datetime
+from flask_jwt_extended import jwt_required
 
 import os
 import time
@@ -77,6 +78,7 @@ def authenticate_user():
 
 # Route Flask pour obtenir la liste des blocs de la blockchain
 @app.route('/blockchain_list', methods=['GET'])
+@jwt_required()
 def blockchain_data():
     data=request
     chain = load_blockchain_data()
@@ -162,7 +164,10 @@ def auth_api():
     if client_signature is None:
         return jsonify({'Error': 'No signature provided'}), 400
     token = authenticate_api(client_public_key, client_signature, public_keys,app)
-    return jsonify({'Token:': f'{token}'}), 200
+    if token != False:
+        return jsonify({'Token:': f'{token}'}), 200
+    else:
+        return "Error while creating token"
 
 # Point d'entrée principal pour l'exécution de l'application
 if __name__ == "__main__":

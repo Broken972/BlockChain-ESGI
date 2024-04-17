@@ -149,7 +149,9 @@ def authenticate_api(client_public_key,signature,approved_public_keys,app):
                 except Exception as e:
                     print("Verification Failed:", e)
                     traceback.print_exc()
+                    return False
                 break
+
 
 # Fonction pour authentifier une demande d'un noeud
 def authenticate(data,approved_public_keys):
