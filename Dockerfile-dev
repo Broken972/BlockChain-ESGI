@@ -13,7 +13,7 @@ RUN adduser --disabled-password -u 1000 user && \
 
 RUN chown -R 1000:1000 /home/user/.ssh
 
-RUN chmod 400 /home/user/.ssh/id_rsa_github
+#RUN chmod 400 /home/user/.ssh/id_rsa_github
 
 COPY ./entrypoint-dev.sh /home/user/entrypoint-dev.sh
 
