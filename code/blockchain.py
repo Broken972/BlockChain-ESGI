@@ -79,10 +79,12 @@ def authenticate_user():
 @app.route('/blockchain_list', methods=['GET'])
 def blockchain_data():
     data=request
-    if authenticate(data, public_keys):
-        return jsonify(chain)
-    else:
-        return auth_failed
+    chain = load_blockchain_data()
+    return jsonify(chain)
+    # if authenticate(data, public_keys):
+    #     return jsonify(chain)
+    # else:
+    #     return auth_failed
 
 # Route Flask pour obtenir santé du node
 @app.route('/health', methods=['GET'])
