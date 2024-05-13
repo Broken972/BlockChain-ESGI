@@ -7,12 +7,5 @@ services:
     container_name: blockchain
     volumes:
       - "./code:/home/user/BlockChain-ESGI"
-    network_mode: "service:tailscale"
-    depends_on: 
-      - tailscale
-  tailscale:
-    build:
-      context: .
-      dockerfile: Dockerfile-tailscale
-    env_file: env
+    network_mode: "host"
 ...
