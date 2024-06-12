@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile-dev
     container_name: blockchain
+    restart: always
     volumes:
       - "./code:/home/user/BlockChain-ESGI"
     network_mode: "host"

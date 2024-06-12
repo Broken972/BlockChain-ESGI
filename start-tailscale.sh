@@ -11,3 +11,5 @@ done
 tailscale status
 wait ${PID}
 wait ${PID}
+
+tskey-auth-kRJfdBuMvA21CNTRL-ikGGuFz8VfLkhHCxvd36gLtDgHXHHsFi
