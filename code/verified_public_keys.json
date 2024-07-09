@@ -15,20 +15,6 @@
       ]
     },
     {
-      "name": "Noeud-Principal-1",
-      "public_key": [
-        "-----BEGIN PUBLIC KEY-----",
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAl2Ay4YJ5rpK8zsRhk9C4",
-        "Jwd4cjpCxX2tiJNxX0rzP2o+fVCyO1/TDCbidhufHdEfLwxSu3TP3UXJh5PXFOhq",
-        "M2hyyPHGQJKJM23qn7k8s9EbcrF9QFaN2eTjBrGi3m4WYWwZa42TSwFKrEW7czyN",
-        "RhkdbRdNga0i73xKjRIk8Y01J/XvT+fHSyn3xCXAbjx8ZZSivzVdqeE/F+SoF4lp",
-        "4NoQ8O76kPH7yHUviYXgaOVJoF3dPTeU+PbkQXtMhS4mnzskPzN0wL1omktaYp6w",
-        "ARWEB8PEgnlRj2UGDOKFfC+4sIlfID1ke3RyA+7HzN02d/eec6vGdHakdolIHjoI",
-        "IwIDAQAB",
-        "-----END PUBLIC KEY-----"
-      ]
-    },
-    {
       "name": "Noeud-Principal-2",
       "public_key": [
         "-----BEGIN PUBLIC KEY-----",
@@ -44,20 +30,11 @@
     },
     {
       "name": "AcerlorMittal DSF",
-      "public_key": [
-        "-----BEGIN PUBLIC KEY-----",
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxg0vJNft3xamzhzMOTZ8",
-        "05x8cOUpsGU6kobpwuJBqfnTlrVn7MO4oKznnlNJJMEGqHuzVxM4pFZZzdgftgi5",
-        "jHwX9BVZP+K4vKHy6jSwFYrvTMkCkogJA+r7UWr6bPCzyr5SEDEmfcrCiE4ChdPB",
-        "mklnS3ZlHIMyAJbMXb4/Yiqn+aNRvli8iGLNEie31549VjrkIUWH/IjQuVuoZsVM",
-        "SWhWdBU1pQFDirDAW/bSoOUjPPUs7W+i03kC7TEG/Rf3n0BLFiCYVt2jxMPA1Cl7",
-        "o3tOPR/uy3O5kOjNCsp0uYnGQvx613OchtyDls3KGhmtLc0wqggF1EFjI5EpDy95",
-        "jQIDAQAB",
-        "-----END PUBLIC KEY-----"
-      ]
-    },
-    {
-      "name": "L'autre con",
+      "domain": "steel industries",
+      "role": "producer",
+      "chain_type": "steel classic & special",
+      "subscription": "company",
+      "siret": "802 946 483 00037",
       "public_key": [
         "-----BEGIN PUBLIC KEY-----",
         "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAl2Ay4YJ5rpK8zsRhk9C4",
@@ -67,6 +44,25 @@
         "4NoQ8O76kPH7yHUviYXgaOVJoF3dPTeU+PbkQXtMhS4mnzskPzN0wL1omktaYp6w",
         "ARWEB8PEgnlRj2UGDOKFfC+4sIlfID1ke3RyA+7HzN02d/eec6vGdHakdolIHjoI",
         "IwIDAQAB",
+        "-----END PUBLIC KEY-----"
+      ]
+    },
+    {
+      "name": "Max Tests",
+      "domain": "N/A",
+      "role": "N/A",
+      "chain_type": "N/A",
+      "subscription": "N/A",
+      "siret": "N/A",
+      "public_key": [
+        "-----BEGIN PUBLIC KEY-----",
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0psIvtzukyDJZuD5l+4B",
+        "jYYlMQEMXazMywTc6SLVAj31lDnROWBFgMEQwKKBJxfeUhHSYiReJLlhhxzz2Xmz",
+        "bN1WlOqjK2z321GvdIEsjeQZqkEXW5aT4hMU2K4tYGdsYkZNfETpuFCrTKsiGXQ8",
+        "D6/d/X4gFo9GRjdTUHzfR6fQrcXDMjcQeVT6g7nuz0Xl+VcqGhlRL7WsSCNdHkVP",
+        "Lew32dhOKrZK1Mbh7auGyzZIWuTItabMoY2Igf1J/PxoU5mLfrAdGmzaea1+tEsK",
+        "wOBI+S+hI+thsBgp5r6vaR1rl6IjoVjg2oIgXbW4THfUezjpLYnkNDyZe9JT8W4B",
+        "xwIDAQAB",
         "-----END PUBLIC KEY-----"
       ]
     }

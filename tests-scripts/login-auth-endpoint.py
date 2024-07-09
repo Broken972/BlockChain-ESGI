@@ -17,17 +17,15 @@ except:
     print("[*] Une erreur est survenue lors de la lecture du fichier private_key ou public_key")
     exit()
 
-message = "authentication_request".encode('utf-8')
+message = "EsgiBlockChain".encode('utf-8')
 
 # Sign the message
 signature = private_key.sign(
     message,
-    padding.PSS(
-        mgf=padding.MGF1(hashes.SHA256()),
-        salt_length=padding.PSS.MAX_LENGTH
-    ),
+    padding.PKCS1v15(),
     hashes.SHA256()
 )
+
 
 public_key_base64 = base64.b64encode(public_key_pem)
 
@@ -37,14 +35,15 @@ headers={
     "PublicKey": public_key_base64.decode(),
     "Signature": signature.hex(),
 }
-print(headers)
+#print(headers)
 
 
+print(base64.b64encode(signature))
 # Send request to the server
-response = requests.get('http://192.168.1.147:5000/auth', headers=headers)
-json_resp = response.json()
-print(json_resp)
-if json_resp["status"] == "success":
-    print("[*] Le noeud est authorisé à accèder au réseau")
-else:
-    print("[!] Le noeud n'est pas autorisé à rejoindre le réseau")
+# response = requests.get('http://192.168.1.147:5000/auth', headers=headers)
+# json_resp = response.json()
+# print(json_resp)
+# if json_resp["status"] == "success":
+#     print("[*] Le noeud est authorisé à accèder au réseau")
+# else:
+#     print("[!] Le noeud n'est pas autorisé à rejoindre le réseau")

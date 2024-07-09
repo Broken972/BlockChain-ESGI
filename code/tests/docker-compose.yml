@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    build: .
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./definitions.json:/etc/rabbitmq/definitions.json
+    network_mode: "host"
+...

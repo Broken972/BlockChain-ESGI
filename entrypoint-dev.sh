@@ -1,1 +1,0 @@
-cd /home/user/BlockChain-ESGI/ && python3 blockchain.py

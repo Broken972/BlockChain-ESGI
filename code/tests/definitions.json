@@ -1,0 +1,23 @@
+{
+    "vhosts": [
+      {
+        "name": "/"
+      }
+    ],
+    "policies": [
+      {
+        "vhost": "/",
+        "name": "default_permissions",
+        "pattern": ".*",
+        "definition": {
+          "permissions": {
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+          }
+        },
+        "apply-to": "all"
+      }
+    ]
+  }
+  

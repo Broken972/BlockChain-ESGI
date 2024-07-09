@@ -2,16 +2,32 @@
 import hashlib
 import json
 import sys
-from functions import *
 from flask import Flask, request, jsonify, Response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from datetime import datetime
 from flask_jwt_extended import jwt_required
-
-import os
+from gevent import pywsgi
+from geventwebsocket.handler import WebSocketHandler
+from flask_sockets import Sockets
+import os,threading,uuid,base64
 import time
+
+#Import API Routes
+from api_routes.health import health_function
+from api_routes.is_jwt_valid import is_jwt_valid
+from api_routes.add_block import add_block
+from api_routes.keys_list import keys_list
+from api_routes.blockchain_list import blockchain_list
+from api_routes.auth_api import auth_api
+from api_routes.jwks import jwks_function
+
+#Import functions
+from functions.rabbitmq_functions import *
+from functions.tailscale_functions import *
+from functions.blockchain_functions import *
+
 # Messages de réponse pour l'authentification
 auth_failed = {"status": "error", "message": "Authentication failed"}
 auth_succeed = {"status": "success", "message": "Authenticated successfully"}
@@ -21,128 +37,61 @@ is_bootstrap_node = True
 
 # Informations globales sur les clés publiques et la chaîne de blocs
 global public_keys, chain
-
 # Initialisation de l'application Flask
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'super-secret'
+app.config['SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
+
+#Création des routes
+app.add_url_rule('/health', 'health', health_function, methods=['GET'])
+app.add_url_rule('/is_jwt_valid', 'is_jwt_valid', is_jwt_valid, methods=['GET'])
+app.add_url_rule('/add_block', 'add_block', add_block, methods=['POST'])
+app.add_url_rule('/keys_list', 'keys_list', keys_list, methods=['GET'])
+app.add_url_rule('/blockchain_list', 'blockchain_list', blockchain_list, methods=['GET'])
+app.add_url_rule('/auth_api', 'auth_api', auth_api, methods=['POST'])
+app.add_url_rule('/.well-known/jwks.json', 'jwks_function', jwks_function, methods=['GET'])
+
 jwt = JWTManager(app)
-def authenticate_user():
-    data = request.json
-    if authenticate(data, public_keys):
-        return auth_succeed
-    else:
-        return auth_failed
-
-# Route Flask pour obtenir la liste des blocs de la blockchain
-@app.route('/blockchain_list', methods=['GET'])
-@jwt_required()
-def blockchain_data():
-    data=request
-    chain = load_blockchain_data()
-    return jsonify(chain)
-    # if authenticate(data, public_keys):
-    #     return jsonify(chain)
-    # else:
-    #     return auth_failed
-
-# Route Flask pour obtenir santé du node
-@app.route('/health', methods=['GET'])
-def blockchain():
-    try:
-        chain = load_blockchain_data()
-        public_keys = load_verified_public_keys()
-        return jsonify({'Status': 'Working as expected'}), 200
-    except Exception as error:
-        print("[!] Impossible de récuperer les données nécessaire")
-        return jsonify({'Status': 'Error'}), 500
-    
-
-@app.route('/add_block', methods=['POST'])
-def add_block():
-    request_data = request.get_json()
-    try:
-       request_data['status']
-       request_data['product_name']
-       request_data['product_location']
-       request_data['product_destination']
-       request_data['packages_total_number']
-       request_data['packages_total_weight']
-       request_data['package_id']
-       request_data['product_detail']
-    except:
-        return jsonify({'Status': 'Error', 'Cause': 'A mendatory field was not defined'}), 400
-    try:
-        with open("blockchain_data.json", "r") as file:
-            chain = json.load(file)
-            last_block_hash = chain[-1]['block_hash']
-            random_data = os.urandom(32)
-            hash_object = hashlib.sha256(random_data)
-            random_hash_hex = hash_object.hexdigest()
-            current_datetime = datetime.now()
-            current_datetime
-            new_data = {
-                "block_hash": random_hash_hex,
-                "previous_block_hash": last_block_hash,
-                #"owner":request_data['owner'], WIP
-                "time": current_datetime.strftime("%Y-%m-%d|%H:%M:%S"),
-                "status": request_data['status'],
-                "produit": request_data['product_name'],
-                "current_place": request_data['product_location'],
-                "destination": request_data['product_destination'],
-                "packages_total_number": request_data['packages_total_number'],
-                "packages_total_weight": request_data['packages_total_weight'],
-                "package_id": request_data['package_id'],
-                "product_detail": request_data['product_detail']
-            }
-            chain.append(new_data)
-        with open("blockchain_data.json", "w") as file:
-            json.dump(chain, file, indent=4)
-        return jsonify({'Status': 'Success'}), 200
-    except:
-        return jsonify({'Status': 'Error'}), 500
-
-# Route Flask pour obtenir la liste des clés publiques
-@app.route('/keys_list', methods=['GET'])
-def keys_data():
-    data=request
-    if authenticate(data, public_keys):
-        return public_keys
-    else:
-        return auth_failed
-
-@app.route('/auth_api', methods=['POST'])
-def auth_api():
-    data = request.form
-    client_public_key = request.form.get('public_key')
-    client_signature = request.form.get('signature')
-    if client_public_key is None:
-        return jsonify({'Error': 'No public key provided'}), 400
-    if client_signature is None:
-        return jsonify({'Error': 'No signature provided'}), 400
-    token = authenticate_api(client_public_key, client_signature, public_keys,app)
-    if token != False:
-        return jsonify({'Token:': f'{token}'}), 200
-    else:
-        return "Error while creating token"
+sockets = Sockets(app)
 
 # Point d'entrée principal pour l'exécution de l'application
 if __name__ == "__main__":
-    #myblockchain = Blockchain()
+    try:
+        our_domain,our_short_domain = return_current_tailscale_domains()
+        print(f"[*] Acquired tailscale IP : {our_domain}")
+    except:
+        print("[ERROR] : Impossible to acquire tailscale IP stopping...")
+        sys.exit()
+    params = rabbit_create_local_connections_parameters()
+    if params == False:
+        print("[ERROR] : Impossible to create local connections parameters to rabbitmq stopping here....")
+        sys.exit()
+    print("[*] Created local parameters")
+    own_queue = rabbit_create_own_node_queue(params,our_short_domain)
+    if own_queue == False:
+        print("[ERROR] : Impossible to create local queue stopping here....")
+        sys.exit()
+    print("[*] Created local queue")
     while True:
         try:
             load_blockchain_data()
-        except:
-            try:
-                chain = retrieve_blockchain()
-            except:
-                print("[*] Error retrieving blockchain")
+        except Exception as e:
+            print(f"[!] Error loading local blockchain : {e}")
+            # try:
+            #     chain = retrieve_blockchain()
+            # except Exception as e:
+            #     print(f"[!] Error retrieving blockchain {e}")
         try:
             public_keys = load_verified_public_keys()
-        except:
-            try:
-                public_key = retrieve_public_keys()
-            except:
-                print("[*] Error retrieving public keys")
+        except Exception as e:
+            print(f"[!] Error loading local public_keys  : {e}")
+            # try:
+            #     public_key = retrieve_public_keys()
+            # except Exception as e:
+            #     print(f"[!] Error retrieving public keys : {e}")
         break
     print("[*] Noeud lancé")
-    app.run(debug=True,host="0.0.0.0",port=os.environ.get('LISTEN_PORT'))
+    nodes=asyncio.run(find_other_nodes())
+    print(nodes)
+    #server = pywsgi.WSGIServer(('0.0.0.0', int(os.environ.get('LISTEN_PORT', 5000))), app, handler_class=CustomWebSocketHandler)
+    server = pywsgi.WSGIServer(('0.0.0.0', int(os.environ.get('LISTEN_PORT', 5000))),app,keyfile='node.key', certfile='node.crt')
+    server.serve_forever()
