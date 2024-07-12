@@ -1,13 +1,15 @@
-flask
+#flask
 Cryptography
 requests
 tailscale
-flask_jwt_extended
-flask_sockets
-gevent
+# flask_jwt_extended
+# flask_sockets
+#gevent
 pika
 websockets
 psutil
-#NE PAS CHANGER LES VERSIONS FIXEES ICI (CAUSE UN PROBLEME DE WEBSOCKET BIZARRE ¯\_(ツ)_/¯)
-Werkzeug==1.0.1
-markupsafe==2.0.1
+aio_pika
+fastapi_jwt_auth
+fastapi
+uvicorn
+pydantic==1.10.7

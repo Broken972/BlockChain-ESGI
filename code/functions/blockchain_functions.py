@@ -2,10 +2,10 @@
 import hashlib
 import json
 import sys
-from flask import Flask, request, jsonify
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from fastapi import FastAPI, Depends
+from fastapi_jwt_auth import AuthJWT
 import base64
 import requests
 import os
@@ -133,7 +133,7 @@ def write_to_chain(data_to_append):
         with open("blockchain_data.json", 'w') as file:
             json.dump(blockchain, file, indent=4)
 
-def authenticate_api(client_public_key,signature,approved_public_keys):
+def authenticate_api(client_public_key,signature,approved_public_keys,Authorize):
     print("Client Public Key:", client_public_key)
     decoded_client_signature = base64.b64decode(signature)
     client_public_key = client_public_key.strip("\n")
@@ -160,7 +160,8 @@ def authenticate_api(client_public_key,signature,approved_public_keys):
                         hashes.SHA256()
                     )
                     #print("yes")
-                    token = create_access_token(identity=str(i['name']), additional_claims={"aud": "rabbitmq","roles": "rabbitmq.configure:*/test_queue rabbitmq.read:*/test_queue rabbitmq.write:*/test_queue"})
+                    additional_claims = {"aud": "rabbitmq", "roles": "rabbitmq.configure:*/* rabbitmq.read:*/* rabbitmq.write:*/*"}
+                    token = Authorize.create_access_token(subject=str(i['name']), user_claims=additional_claims)
                     print("Verification Successful")
                     print("token " + token)
                     return token

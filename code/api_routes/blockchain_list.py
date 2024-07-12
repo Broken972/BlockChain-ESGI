@@ -1,11 +1,12 @@
-from flask import request,jsonify
 import sys
+from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
+from fastapi_jwt_auth import AuthJWT
 sys.path.insert(0, '..')
 
 from functions import *
 
 # Route Flask pour obtenir la liste des blocs de la blockchain
-def blockchain_list():
-    data=request
+async def blockchain_list():
     chain = load_blockchain_data()
-    return jsonify(chain)
+    return JSONResponse(chain)

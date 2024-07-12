@@ -1,28 +1,17 @@
-from flask import jsonify,request
 import json
 import os,hashlib
 from datetime import datetime
-from flask_jwt_extended import jwt_required
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import JSONResponse
+from fastapi_jwt_auth import AuthJWT
 import threading
 import sys
 sys.path.insert(0, '..')
 
 from functions import *
-
-@jwt_required()
-def add_block():
-    request_data = request.get_json()
-    try:
-       request_data['status']
-       request_data['product_name']
-       request_data['product_location']
-       request_data['product_destination']
-       request_data['packages_total_number']
-       request_data['packages_total_weight']
-       request_data['package_id']
-       request_data['product_detail']
-    except:
-        return jsonify({'Status': 'Error', 'Cause': 'A mendatory field was not defined'}), 400
+app = FastAPI()
+async def add_block(user_data,Authorize):
+    Authorize.jwt_required()
     try:
         with open("blockchain_data.json", "r") as file:
             chain = json.load(file)
@@ -32,18 +21,18 @@ def add_block():
             new_data = {
                 "previous_block_hash": last_block_hash,
                 "time": time,
-                "status": request_data['status'],
-                "produit": request_data['product_name'],
-                "current_place": request_data['product_location'],
-                "destination": request_data['product_destination'],
-                "packages_total_number": request_data['packages_total_number'],
-                "packages_total_weight": request_data['packages_total_weight'],
-                "package_id": request_data['package_id'],
-                "product_detail": request_data['product_detail'],
-                "product_family": request_data["product_family"],
-                "product_current_owner": request_data["product_current_owner"],
-                "product_origin_country": request_data["product_origin_country"],
-                "product_origin_producer": request_data["product_origin_producer"]
+                "status": user_data.status,
+                "produit": user_data.product_name,
+                "current_place": user_data.product_location,
+                "destination": user_data.product_destination,
+                "packages_total_number": user_data.packages_total_number,
+                "packages_total_weight": user_data.packages_total_weight,
+                "package_id": user_data.package_id,
+                "product_detail": user_data.product_detail,
+                "product_family": user_data.product_family,
+                "product_current_owner": user_data.product_current_owner,
+                "product_origin_country": user_data.product_origin_country,
+                "product_origin_producer": user_data.product_origin_producer,
             }
             json_string = json.dumps(new_data, sort_keys=True)
             encoded_data = json_string.encode()
@@ -54,6 +43,6 @@ def add_block():
             chain.append(new_data)
             with open("blockchain_data.json", "w") as file:
                 json.dump(chain, file, indent=4)
-        return jsonify({'Status': 'Success'}), 200
+        return JSONResponse(content={'Status': 'Success'}, status_code=200)
     except Exception as e:
-        return jsonify({'Status': 'Error', "msg": str(e)}), 500
+        return JSONResponse(content={'Status': 'Error','msg': e}, status_code=500)
