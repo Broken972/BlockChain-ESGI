@@ -1,5 +1,6 @@
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from flask import jsonify
-@jwt_required()
-def is_jwt_valid():
-    return jsonify({"msg": "success"})
+from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
+from fastapi_jwt_auth import AuthJWT
+def is_jwt_valid(Authorize: AuthJWT = Depends()):
+    Authorize.jwt_required()
+    return JSONResponse(content={'msg': 'success'}, status_code=200)

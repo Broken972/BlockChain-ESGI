@@ -23,5 +23,4 @@ USER user
 
 WORKDIR /home/user/BlockChain-ESGI/
 
-#Ici le -u permet de désactiver un buffer étrange de python3 quand dockerizé sans cette option les appels print ne remontent pas dans stdout
-CMD ["python3","-u","blockchain.py"]
+CMD ["uvicorn","blockchain:app","--port","5000","--host","0.0.0.0","--reload","--ssl-keyfile","./keys/node_tls.key","--ssl-certfile","./keys/node_tls.crt"]

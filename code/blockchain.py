@@ -1,20 +1,21 @@
-# Importation des modules nécessaires
 import hashlib
 import json
 import sys
-from flask import Flask, request, jsonify, Response
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from datetime import datetime
-from flask_jwt_extended import jwt_required
-from gevent import pywsgi
-from geventwebsocket.handler import WebSocketHandler
-from flask_sockets import Sockets
-import os,threading,uuid,base64
-import time
+from fastapi import FastAPI, Request, Depends, HTTPException, Form,status
+from fastapi.responses import JSONResponse
+from fastapi_jwt_auth import AuthJWT
+import os
+from pydantic import BaseModel
+import uvicorn
+import time,re
+import asyncio
+from starlette.background import BackgroundTasks
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import logging
+from faststream import FastStream, Logger
 
-#Import API Routes
+# Import API Routes
 from api_routes.health import health_function
 from api_routes.is_jwt_valid import is_jwt_valid
 from api_routes.add_block import add_block
@@ -22,12 +23,18 @@ from api_routes.keys_list import keys_list
 from api_routes.blockchain_list import blockchain_list
 from api_routes.auth_api import auth_api
 from api_routes.jwks import jwks_function
+from api_routes.validate_block import validate_block
 
-#Import functions
+# Import functions
 from functions.rabbitmq_functions import *
 from functions.tailscale_functions import *
 from functions.blockchain_functions import *
+from functions.consul.find_available_services import *
+from functions.consul.register_service import register_service
 
+# Import listeners
+from listeners.fast_stream_config import faststream_app, broker,node_queue,global_new_block_exch
+import listeners.new_block_listener
 # Messages de réponse pour l'authentification
 auth_failed = {"status": "error", "message": "Authentication failed"}
 auth_succeed = {"status": "success", "message": "Authenticated successfully"}
@@ -37,61 +44,170 @@ is_bootstrap_node = True
 
 # Informations globales sur les clés publiques et la chaîne de blocs
 global public_keys, chain
-# Initialisation de l'application Flask
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
 
-#Création des routes
-app.add_url_rule('/health', 'health', health_function, methods=['GET'])
-app.add_url_rule('/is_jwt_valid', 'is_jwt_valid', is_jwt_valid, methods=['GET'])
-app.add_url_rule('/add_block', 'add_block', add_block, methods=['POST'])
-app.add_url_rule('/keys_list', 'keys_list', keys_list, methods=['GET'])
-app.add_url_rule('/blockchain_list', 'blockchain_list', blockchain_list, methods=['GET'])
-app.add_url_rule('/auth_api', 'auth_api', auth_api, methods=['POST'])
-app.add_url_rule('/.well-known/jwks.json', 'jwks_function', jwks_function, methods=['GET'])
+# Initialisation de l'application FastAPI
+app = FastAPI()
 
-jwt = JWTManager(app)
-sockets = Sockets(app)
+# Load RSA keys
+with open('./keys/private_key.pem', 'r') as f:
+    private_key = f.read()
+with open('./keys/public_key.pem', 'r') as f:
+    public_key = f.read()
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
+	logging.error(f"{request}: {exc_str}")
+	content = {'status_code': 10422, 'message': exc_str, 'data': None}
+	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+# Configure FastAPI-JWT-Auth
+class Settings(BaseModel):
+    authjwt_algorithm: str = "RS256"
+    authjwt_private_key: str = private_key
+    authjwt_public_key: str = public_key
+    authjwt_secret_key: str = os.getenv("JWT_SECRET_KEY")
+    authjwt_decode_audience: str = "rabbitmq"
+
+class AddBlock(BaseModel):
+    status: str
+    product_name: str
+    product_location: str
+    product_destination: str
+    packages_total_number:str
+    packages_total_weight: str
+    package_id: str
+    product_detail: str
+    product_family: str
+    product_current_owner: str
+    product_origin_country: str
+    product_origin_producer: str
+
+class ReceiveAddBlock(BaseModel):
+    time: str
+    previous_block_hash: str
+    status: str
+    product_name: str
+    product_location: str
+    product_destination: str
+    packages_total_number:str
+    packages_total_weight: str
+    package_id: str
+    product_detail: str
+    product_family: str
+    product_current_owner: str
+    product_origin_country: str
+    product_origin_producer: str
+    block_hash: str
+
+# @broker.subscriber("new_block")  # handle messages by routing key
+# async def handle(msg):
+#     msg=msg.decode()
+#     msg=msg.replace("'",'"')
+#     try:
+#         #See if the json itself has a problem
+#         json_msg=json.loads(msg)
+#         print(json_msg)
+#     except Exception as e:
+#         print(e)
+
+# Start the FastStream application together with FastAPI
+@app.on_event("startup")
+async def startup_event():
+    await faststream_app.start()
+    await broker.connect()
+    #Declare rabbitmq objects in case it does not exist
+    await broker.declare_exchange(global_new_block_exch)
+    #await broker.publish("Hi!", exchange=global_new_block_exch)
+    await broker.close()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await faststream_app.stop()
+
+@AuthJWT.load_config
+def get_config():
+    return Settings()
+
+# Création des routes
+@app.get('/health')
+async def health():
+    return await health_function()
+
+@app.get('/is_jwt_valid')
+async def is_jwt_valid_fast():
+    return await is_jwt_valid()
+
+@app.post('/add_block')
+async def add_block_fast(user_data: AddBlock,Authorize: AuthJWT = Depends()):
+    our_node = return_current_tailscale_domains()[0]
+    healthy_nodes = await get_healthy_services('rabbitmq',our_node)
+    print(healthy_nodes)
+    return await add_block(user_data,Authorize,healthy_nodes)
+
+@app.post('/validate_block')
+async def validate_block_fast(user_data_to_validate: ReceiveAddBlock,Authorize: AuthJWT = Depends()):
+    our_node = return_current_tailscale_domains()[0]
+    healthy_nodes = await get_healthy_services('rabbitmq',our_node)
+    print(healthy_nodes)
+    return await validate_block(user_data_to_validate,Authorize,healthy_nodes)
+
+@app.get('/keys_list')
+async def keys_list_fast():
+    return await keys_list()
+
+@app.get('/blockchain_list')
+async def blockchain_list_fast():
+    return await blockchain_list()
+
+@app.post('/auth_api')
+async def auth_api_fast(public_key: str = Form(...), signature: str = Form(...),Authorize: AuthJWT = Depends()):
+    return await auth_api(public_key,signature,Authorize)
+
+@app.get('/.well-known/jwks.json')
+async def jwks(request: Request):
+    return await jwks_function(request)
+
+@app.on_event("startup")
+async def startup_event():
+    our_node = return_current_tailscale_domains()[0]
+    register_service(our_node,8501,"https","blockchain-server","blockchain-check", 5000, {"HTTP": "https://node-local-kali-2.tailc2844.ts.net:5000/health","Interval": "10s"})
+
 
 # Point d'entrée principal pour l'exécution de l'application
 if __name__ == "__main__":
-    try:
-        our_domain,our_short_domain = return_current_tailscale_domains()
-        print(f"[*] Acquired tailscale IP : {our_domain}")
-    except:
-        print("[ERROR] : Impossible to acquire tailscale IP stopping...")
-        sys.exit()
-    params = rabbit_create_local_connections_parameters()
-    if params == False:
-        print("[ERROR] : Impossible to create local connections parameters to rabbitmq stopping here....")
-        sys.exit()
-    print("[*] Created local parameters")
-    own_queue = rabbit_create_own_node_queue(params,our_short_domain)
-    if own_queue == False:
-        print("[ERROR] : Impossible to create local queue stopping here....")
-        sys.exit()
-    print("[*] Created local queue")
-    while True:
+    time.sleep(5)
+    
+    async def main():
         try:
-            load_blockchain_data()
-        except Exception as e:
-            print(f"[!] Error loading local blockchain : {e}")
-            # try:
-            #     chain = retrieve_blockchain()
-            # except Exception as e:
-            #     print(f"[!] Error retrieving blockchain {e}")
-        try:
-            public_keys = load_verified_public_keys()
-        except Exception as e:
-            print(f"[!] Error loading local public_keys  : {e}")
-            # try:
-            #     public_key = retrieve_public_keys()
-            # except Exception as e:
-            #     print(f"[!] Error retrieving public keys : {e}")
-        break
-    print("[*] Noeud lancé")
-    nodes=asyncio.run(find_other_nodes())
-    print(nodes)
-    #server = pywsgi.WSGIServer(('0.0.0.0', int(os.environ.get('LISTEN_PORT', 5000))), app, handler_class=CustomWebSocketHandler)
-    server = pywsgi.WSGIServer(('0.0.0.0', int(os.environ.get('LISTEN_PORT', 5000))),app,keyfile='node.key', certfile='node.crt')
-    server.serve_forever()
+            our_domain, our_short_domain = return_current_tailscale_domains()
+            print(f"[*] Acquired tailscale IP : {our_domain}")
+        except:
+            print("[ERROR] : Impossible to acquire tailscale IP stopping...")
+            sys.exit()
+        # params = rabbit_create_local_connections_parameters()
+        # if params == False:
+        #     print("[ERROR] : Impossible to create local connections parameters to rabbitmq stopping here....")
+        #     sys.exit()
+        # print("[*] Created local parameters")
+        # own_queue = rabbit_create_own_node_queue(params, "receive_block")
+        # if own_queue == False:
+        #     print("[ERROR] : Impossible to create local queue stopping here....")
+        #     sys.exit()
+        if 'true' in os.getenv("VALIDATOR_NODE"):
+            validator_queue = rabbit_create_own_node_queue(params, "validate_block")
+        print("[*] Created local queue(s)")
+        while True:
+            try:
+                load_blockchain_data()
+            except Exception as e:
+                print(f"[!] Error loading local blockchain : {e}")
+            try:
+                public_keys = load_verified_public_keys()
+            except Exception as e:
+                print(f"[!] Error loading local public_keys  : {e}")
+            break
+        print("[*] Noeud lancé")
+    #asyncio.run(main())
+    #uvicorn.run(app, host='0.0.0.0', port=int(os.environ.get('LISTEN_PORT', 5000)), ssl_keyfile='./keys/node_tls.key', ssl_certfile='./keys/node_tls.crt')
