@@ -22,6 +22,46 @@ with open("node_id") as file:
 
 boostrap_node = [os.environ.get('BOOSTRAPE_NODE')]
 
+
+def obtain_jwt_from_remote(remote_host):
+    try:
+        # Load the public key
+        with open("./keys/public_key.pem", "rb") as f:
+            public_key_pem = f.read()
+            public_key = serialization.load_pem_public_key(public_key_pem)
+
+        # Load the private key
+        with open("./keys/private_key.pem", "rb") as f:
+            private_key_pem = f.read()
+            private_key = serialization.load_pem_private_key(private_key_pem, password=None)
+    except Exception as e:
+        print("[*] Une erreur est survenue lors de la lecture du fichier private_key ou public_key")
+        print(e)
+        exit()
+    message = "EsgiBlockChain".encode('utf-8')
+    signature = private_key.sign(
+        message,
+        padding.PKCS1v15(),
+        hashes.SHA256()
+    )
+    signature = base64.b64encode(signature).decode()
+    public_key_pem = public_key_pem.decode().replace("\n","")
+    url = f'https://{remote_host}/auth_api'
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = {
+        'public_key': public_key_pem,
+        'signature': signature
+    }
+    response = requests.post(url, headers=headers, data=data)
+    try:
+        token = response.json()["Token:"]
+        return token
+    except Exception as e:
+        return (f"error : {e}")
+
+
 def load_local_keys():
     try:
         with open("./keys/public_key.pem", "rb") as f:
@@ -159,7 +199,10 @@ def authenticate_api(client_public_key,signature,approved_public_keys,Authorize)
                         padding.PKCS1v15(),
                         hashes.SHA256()
                     )
-                    #print("yes")
+                    # Special logic here 
+                    # If you are a validator node you create tokens that only allow for reading the /new_block queue because otherwise any body can push new blocks in
+                    # So we only allow validators via localhost to push messages through their local rabbit mq
+                    # And non-validators will be indicated to use the 
                     additional_claims = {"aud": "rabbitmq", "roles": "rabbitmq.configure:*/* rabbitmq.read:*/* rabbitmq.write:*/*"}
                     token = Authorize.create_access_token(subject=str(i['name']), user_claims=additional_claims)
                     print("Verification Successful")
@@ -169,7 +212,6 @@ def authenticate_api(client_public_key,signature,approved_public_keys,Authorize)
                     print("Verification Failed:", e)
                     traceback.print_exc()
                     return False
-                break
     return False
 
 def hash_pair(a, b):

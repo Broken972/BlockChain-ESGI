@@ -1,10 +1,11 @@
 # Use the official Consul image
 FROM hashicorp/consul:1.19.0
+
 # Add consul.hcl configuration file
 COPY ./consul-conf/consul.hcl /consul/config/consul.hcl
 COPY ./node-local-kali.tailc2844.ts.net.crt /certs/ca.crt
-# Add the JWT provider and service intentions configuration files
-COPY ./consul-conf/policy.hcl /consul/policy.hcl
+COPY ./node-local-kali.tailc2844.ts.net.key /certs/ca.key
+RUN cat /certs/ca.key >> /certs/ca.crt
 
 # Add a script to configure Consul after it starts
 COPY ./consul-conf/configure-consul.sh /usr/local/bin/configure-consul.sh
@@ -14,4 +15,4 @@ RUN chmod +x /usr/local/bin/configure-consul.sh
 
 # Start Consul and run the configuration script
 #CMD ["sh", "-c", "consul agent -dev -config-dir=/consul/config & sleep 10 && /usr/local/bin/configure-consul.sh"]
-CMD ["sh", "-c","/usr/local/bin/configure-consul.sh & consul agent -dev -config-dir=/consul/config -log-level trace"]
+CMD ["sh", "-c","consul agent -server -ui -config-dir=/consul/config -join node-local-kali-2 -bootstrap-expect 3"]
