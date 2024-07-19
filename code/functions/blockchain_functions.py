@@ -3,6 +3,7 @@ import hashlib
 import json
 import sys
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import padding
 from fastapi import FastAPI, Depends
 from fastapi_jwt_auth import AuthJWT
@@ -22,6 +23,46 @@ with open("node_id") as file:
 
 boostrap_node = [os.environ.get('BOOSTRAPE_NODE')]
 
+
+def obtain_jwt_from_remote(remote_host):
+    try:
+        # Load the public key
+        with open("./keys/public_key.pem", "rb") as f:
+            public_key_pem = f.read()
+            public_key = serialization.load_pem_public_key(public_key_pem)
+
+        # Load the private key
+        with open("./keys/private_key.pem", "rb") as f:
+            private_key_pem = f.read()
+            private_key = serialization.load_pem_private_key(private_key_pem, password=None)
+    except Exception as e:
+        print("[*] Une erreur est survenue lors de la lecture du fichier private_key ou public_key")
+        print(e)
+        exit()
+    message = "EsgiBlockChain".encode('utf-8')
+    signature = private_key.sign(
+        message,
+        padding.PKCS1v15(),
+        hashes.SHA256()
+    )
+    signature = base64.b64encode(signature).decode()
+    public_key_pem = public_key_pem.decode().replace("\n","")
+    url = f'https://{remote_host}/auth_api'
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = {
+        'public_key': public_key_pem,
+        'signature': signature
+    }
+    response = requests.post(url, headers=headers, data=data)
+    try:
+        token = response.json()["Token:"]
+        return token
+    except Exception as e:
+        return (f"error : {e}")
+
+
 def load_local_keys():
     try:
         with open("./keys/public_key.pem", "rb") as f:
@@ -36,6 +77,20 @@ def load_local_keys():
         print(error)
         print("[*] Une erreur est survenue lors de la lecture du fichier private_key ou public_key")
         exit()
+
+def generate_signature():
+    public_key_pem,private_key=load_local_keys()
+    message = "valid_block".encode('utf-8')
+    signature = private_key.sign(
+        message,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+    b64singnature = base64.b64encode(signature)
+    return b64singnature
 
 def init_headers(public_key,private_key):
     message = "authentication_request".encode('utf-8')
@@ -108,6 +163,34 @@ def load_verified_public_keys():
     except FileNotFoundError:
         print("[!] Impossible de récuperer les données des clés publiques, Tentative de récupération sur le noeud principal....")
 
+def verify_signature(public_key_pem, message, signature):
+    try:
+        public_key = serialization.load_pem_public_key(public_key_pem.encode())
+        public_key.verify(
+            signature,
+            message,  # message is already bytes
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        return True
+    except InvalidSignature:
+        return False
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
+    
+def find_matching_key(data, message, base64_signature):
+    signature = base64.b64decode(base64_signature)
+    for identity in data['identities']:
+        public_key_pem = '\n'.join(identity['public_key'])
+        if verify_signature(public_key_pem, message, signature):
+            return identity['name']
+    return None
+
+
 # Fonction pour extraire les clés publiques depuis des données JSON
 def extract_public_keys(json_data):
     public_keys_info = []
@@ -115,12 +198,13 @@ def extract_public_keys(json_data):
     for identity in json_data['identities']:
         name = identity['name']
         public_key_lines = identity['public_key']
-
+        is_validator = identity['is_validator']
         public_key = '\n'.join(public_key_lines)
 
         public_keys_info.append({
             'name': name,
-            'public_key': public_key
+            'public_key': public_key,
+            'is_validator': is_validator
         })
     return public_keys_info
 
@@ -195,92 +279,3 @@ def calculate_merkle_root(hashes):
 def calculate_merkle_root_from_json(blocks):
     block_hashes = [block['block_hash'] for block in blocks]
     return calculate_merkle_root(block_hashes)
-
-# def get_connection_parameters(nodes):
-#     credentials = pika.PlainCredentials('rabbitmq', 'rabbitmq')
-#     parameters = [
-#         pika.ConnectionParameters(
-#             host=node,
-#             credentials=credentials,
-#             connection_attempts=5,
-#             retry_delay=2,
-#             heartbeat=600,
-#             blocked_connection_timeout=300
-#         )
-#         for node in nodes
-#     ]
-#     return parameters
-
-# def callback(ch, method, properties, body):
-#     message = json.loads(body)
-#     sender_id = message["node_id"]
-#     block = message["block"]
-#     attempt = message.get("attempt", 1)
-
-#     # If the message is from this node, resend it with a limit on the number of attempts
-#     if sender_id == node_id:
-#         if attempt < 2:
-#             print(f" [x] Resending block from this node: {block} (attempt: {attempt})")
-#             publish_update(block, is_resend=True, attempt=attempt + 1)
-#         else:
-#             print(f" [x] Resend attempt limit reached for block: {block}")
-#         return
-
-#     print(f" [x] Received block: {block}")
-
-#     # Save the updated blockchain
-#     write_to_chain(block)
-
-
-# def start_subscriber():
-#     nodes = ['node-local-kali-2.tailc2844.ts.net', 'node-local-kali.tailc2844.ts.net']
-#     parameters = get_connection_parameters(nodes)
-
-#     connection = None
-#     for param in parameters:
-#         try:
-#             connection = pika.BlockingConnection(param)
-#             break
-#         except pika.exceptions.AMQPConnectionError:
-#             print(f"Connection to {param.host} failed. Trying next node...")
-#     else:
-#         raise Exception("All RabbitMQ nodes are unreachable")
-
-#     channel = connection.channel()
-#     channel.queue_declare(queue='blockchain_updates', durable=True)
-#     channel.basic_consume(queue='blockchain_updates', on_message_callback=callback, auto_ack=True)
-#     print(' [*] Waiting for blockchain updates. To exit press CTRL+C')
-#     channel.start_consuming()
-
-
-# def publish_update(block, is_resend=False, attempt=1, max_attempts=2):
-#     # Load the current blockchain if not a resend
-#     if not is_resend:
-#         write_to_chain(block)
-
-#     # Add the node identifier to the block
-#     message = {
-#         "node_id": node_id,
-#         "block": block,
-#         "attempt": attempt
-#     }
-
-#     # Define connection parameters with multiple RabbitMQ nodes
-#     nodes = ['node-local-kali-2.tailc2844.ts.net', 'node-local-kali.tailc2844.ts.net']
-#     parameters = get_connection_parameters(nodes)
-
-#     connection = None
-#     for param in parameters:
-#         try:
-#             connection = pika.BlockingConnection(param)
-#             break
-#         except pika.exceptions.AMQPConnectionError:
-#             print(f"Connection to {param.host} failed. Trying next node...")
-#     else:
-#         raise Exception("All RabbitMQ nodes are unreachable")
-
-#     channel = connection.channel()
-#     channel.queue_declare(queue='blockchain_updates', durable=True)
-#     channel.basic_publish(exchange='', routing_key='blockchain_updates', body=json.dumps(message))
-#     print(f" [x] Sent block: {block} (resend: {is_resend}, attempt: {attempt})")
-#     connection.close()

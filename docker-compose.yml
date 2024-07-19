@@ -19,15 +19,32 @@ services:
       context: .
       dockerfile: Dockerfile-rabbitmq
     container_name: rabbitmq
+    depends_on:
+      consul:
+          condition: service_healthy
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
+      NODENAME: rabbitmq@node-local-kali-2
+      RABBITMQ_ERLANG_COOKIE: "test"
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     network_mode: "host"
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status"]
-      interval: 5s
+      interval: 15s
       timeout: 20s
+      retries: 5
+
+  consul:
+    build:
+      context: .
+      dockerfile: Dockerfile-consul
+    container_name: consul
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://node-local-kali-2.tailc2844.ts.net:8501/v1/status/leader"]
+      interval: 10s
+      timeout: 10s
       retries: 5
 ...

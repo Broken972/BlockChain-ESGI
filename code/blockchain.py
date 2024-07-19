@@ -1,14 +1,19 @@
 import hashlib
 import json
 import sys
-from fastapi import FastAPI, Request, Depends, HTTPException, Form
+from fastapi import FastAPI, Request, Depends, HTTPException, Form,status
 from fastapi.responses import JSONResponse
 from fastapi_jwt_auth import AuthJWT
 import os
 from pydantic import BaseModel
 import uvicorn
-import time
+import time,re
 import asyncio
+from starlette.background import BackgroundTasks
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import logging
+from faststream import FastStream, Logger
 
 # Import API Routes
 from api_routes.health import health_function
@@ -18,15 +23,18 @@ from api_routes.keys_list import keys_list
 from api_routes.blockchain_list import blockchain_list
 from api_routes.auth_api import auth_api
 from api_routes.jwks import jwks_function
+from api_routes.validate_block import validate_block
 
 # Import functions
 from functions.rabbitmq_functions import *
 from functions.tailscale_functions import *
 from functions.blockchain_functions import *
+from functions.consul.find_available_services import *
+from functions.consul.register_service import register_service
 
 # Import listeners
-from listeners.validator_receiver import start_rabbitmq_consumer
-
+from listeners.fast_stream_config import faststream_app, broker,node_queue,global_new_block_exch
+import listeners.new_block_listener
 # Messages de réponse pour l'authentification
 auth_failed = {"status": "error", "message": "Authentication failed"}
 auth_succeed = {"status": "success", "message": "Authenticated successfully"}
@@ -45,6 +53,13 @@ with open('./keys/private_key.pem', 'r') as f:
     private_key = f.read()
 with open('./keys/public_key.pem', 'r') as f:
     public_key = f.read()
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
+	logging.error(f"{request}: {exc_str}")
+	content = {'status_code': 10422, 'message': exc_str, 'data': None}
+	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 # Configure FastAPI-JWT-Auth
 class Settings(BaseModel):
@@ -68,6 +83,37 @@ class AddBlock(BaseModel):
     product_origin_country: str
     product_origin_producer: str
 
+class ReceiveAddBlock(BaseModel):
+    time: str
+    previous_block_hash: str
+    status: str
+    product_name: str
+    product_location: str
+    product_destination: str
+    packages_total_number:str
+    packages_total_weight: str
+    package_id: str
+    product_detail: str
+    product_family: str
+    product_current_owner: str
+    product_origin_country: str
+    product_origin_producer: str
+    block_hash: str
+
+# Start the FastStream application together with FastAPI
+@app.on_event("startup")
+async def startup_event():
+    await faststream_app.start()
+    await broker.connect()
+    #Declare rabbitmq objects in case it does not exist
+    await broker.declare_exchange(global_new_block_exch)
+    await broker.close()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await faststream_app.stop()
+
 @AuthJWT.load_config
 def get_config():
     return Settings()
@@ -83,7 +129,17 @@ async def is_jwt_valid_fast():
 
 @app.post('/add_block')
 async def add_block_fast(user_data: AddBlock,Authorize: AuthJWT = Depends()):
-    return await add_block(user_data,Authorize)
+    our_node = return_current_tailscale_domains()[0]
+    healthy_nodes = await get_healthy_services('rabbitmq',our_node)
+    print(healthy_nodes)
+    return await add_block(user_data,Authorize,healthy_nodes)
+
+@app.post('/validate_block')
+async def validate_block_fast(user_data_to_validate: ReceiveAddBlock,Authorize: AuthJWT = Depends()):
+    our_node = return_current_tailscale_domains()[0]
+    healthy_nodes = await get_healthy_services('rabbitmq',our_node)
+    print(healthy_nodes)
+    return await validate_block(user_data_to_validate,Authorize,healthy_nodes)
 
 @app.get('/keys_list')
 async def keys_list_fast():
@@ -101,6 +157,12 @@ async def auth_api_fast(public_key: str = Form(...), signature: str = Form(...),
 async def jwks(request: Request):
     return await jwks_function(request)
 
+@app.on_event("startup")
+async def startup_event():
+    our_node = return_current_tailscale_domains()[0]
+    register_service(our_node,8501,"https","blockchain-server","blockchain-check", 5000, {"HTTP": "https://node-local-kali-2.tailc2844.ts.net:5000/health","Interval": "10s"})
+
+
 # Point d'entrée principal pour l'exécution de l'application
 if __name__ == "__main__":
     time.sleep(5)
@@ -112,17 +174,6 @@ if __name__ == "__main__":
         except:
             print("[ERROR] : Impossible to acquire tailscale IP stopping...")
             sys.exit()
-        params = rabbit_create_local_connections_parameters()
-        if params == False:
-            print("[ERROR] : Impossible to create local connections parameters to rabbitmq stopping here....")
-            sys.exit()
-        print("[*] Created local parameters")
-        own_queue = rabbit_create_own_node_queue(params, "receive_block")
-        if own_queue == False:
-            print("[ERROR] : Impossible to create local queue stopping here....")
-            sys.exit()
-        if 'true' in os.getenv("VALIDATOR_NODE"):
-            validator_queue = rabbit_create_own_node_queue(params, "validate_block")
         print("[*] Created local queue(s)")
         while True:
             try:
@@ -135,5 +186,3 @@ if __name__ == "__main__":
                 print(f"[!] Error loading local public_keys  : {e}")
             break
         print("[*] Noeud lancé")
-    #asyncio.run(main())
-    #uvicorn.run(app, host='0.0.0.0', port=int(os.environ.get('LISTEN_PORT', 5000)), ssl_keyfile='./keys/node_tls.key', ssl_certfile='./keys/node_tls.crt')

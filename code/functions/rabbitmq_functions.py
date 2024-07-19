@@ -27,6 +27,21 @@ def rabbit_create_local_connections_parameters():
     except Exception as e:
         print(e)
         return False
+    
+def rabbit_create_remote_local_connections_parameters(jwt_token,remote_host):
+    try:
+        credentials = pika.PlainCredentials("Max Tests", jwt_token)
+        connection_params = pika.ConnectionParameters(
+            host=remote_host,
+            port=5672,
+            virtual_host='/',
+            credentials=credentials
+        )
+        return connection_params
+    except Exception as e:
+        print(e)
+        return False
+
 
 def rabbit_create_own_node_queue(connection_params,tailscale_short_domain):
     try:
@@ -38,6 +53,24 @@ def rabbit_create_own_node_queue(connection_params,tailscale_short_domain):
         print(e)
         return False
     
+
+def rabbit_send_msg_to_remote_queue(connection_params,queue,msg):
+    try:
+        connection = pika.BlockingConnection(connection_params)
+        channel = connection.channel()
+        channel.basic_publish(
+            exchange='',
+            routing_key=queue,
+            body=msg,
+            properties=pika.BasicProperties(
+                delivery_mode=2,
+        ))
+        connection.close()
+        return "ok"
+    except Exception as e:
+        print(e)
+        return "ko"
+
 def rabbit_check_health():
     url = 'http://localhost:15672/api/healthchecks/node'
     auth = HTTPBasicAuth('user', 'password')
