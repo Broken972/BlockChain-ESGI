@@ -3,16 +3,10 @@ FROM hashicorp/consul:1.19.0
 
 # Add consul.hcl configuration file
 COPY ./consul-conf/consul.hcl /consul/config/consul.hcl
-COPY ./node-local-kali.tailc2844.ts.net.crt /certs/ca.crt
-COPY ./node-local-kali.tailc2844.ts.net.key /certs/ca.key
-RUN cat /certs/ca.key >> /certs/ca.crt
+COPY ./consul-conf/consul-entrypoint.sh /consul/consul-entrypoint.sh
+COPY ./consul-conf/healthcheck.sh /consul/
+RUN apk update && apk add tailscale jq
 
-# Add a script to configure Consul after it starts
-COPY ./consul-conf/configure-consul.sh /usr/local/bin/configure-consul.sh
+RUN chmod +x /consul/consul-entrypoint.sh /consul/healthcheck.sh
 
-# Make the script executable
-RUN chmod +x /usr/local/bin/configure-consul.sh
-
-# Start Consul and run the configuration script
-#CMD ["sh", "-c", "consul agent -dev -config-dir=/consul/config & sleep 10 && /usr/local/bin/configure-consul.sh"]
-CMD ["sh", "-c","consul agent -server -ui -config-dir=/consul/config -join node-local-kali-2 -bootstrap-expect 3"]
+CMD ["sh","/consul/consul-entrypoint.sh"]

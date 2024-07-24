@@ -6,16 +6,13 @@ acl {
     master = "magrossebite"
   }
 }
-node_name = "node-local-kali"
+
 data_dir = "/consul/data"
-bind_addr = "100.78.238.43"
-client_addr = "100.78.238.43"
 
 ports {
   https = 8501
   http = 8500
 }
-
 
 tls {
   https {

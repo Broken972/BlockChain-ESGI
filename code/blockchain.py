@@ -24,13 +24,16 @@ from api_routes.blockchain_list import blockchain_list
 from api_routes.auth_api import auth_api
 from api_routes.jwks import jwks_function
 from api_routes.validate_block import validate_block
-
+from api_routes.send_missing_blocks import send_missing_blocks
+from api_routes.change_block_location import change_block_location
+from api_routes.change_block_owner import change_block_owner
 # Import functions
 from functions.rabbitmq_functions import *
 from functions.tailscale_functions import *
 from functions.blockchain_functions import *
 from functions.consul.find_available_services import *
 from functions.consul.register_service import register_service
+from functions.find_missing_blocks import *
 
 # Import listeners
 from listeners.fast_stream_config import faststream_app, broker,node_queue,global_new_block_exch
@@ -79,9 +82,10 @@ class AddBlock(BaseModel):
     package_id: str
     product_detail: str
     product_family: str
-    product_current_owner: str
     product_origin_country: str
     product_origin_producer: str
+    secret_data: str
+    secret_data_receiver: str
 
 class ReceiveAddBlock(BaseModel):
     time: str
@@ -99,28 +103,10 @@ class ReceiveAddBlock(BaseModel):
     product_origin_country: str
     product_origin_producer: str
     block_hash: str
-
-# @broker.subscriber("new_block")  # handle messages by routing key
-# async def handle(msg):
-#     msg=msg.decode()
-#     msg=msg.replace("'",'"')
-#     try:
-#         #See if the json itself has a problem
-#         json_msg=json.loads(msg)
-#         print(json_msg)
-#     except Exception as e:
-#         print(e)
-
-# Start the FastStream application together with FastAPI
-@app.on_event("startup")
-async def startup_event():
-    await faststream_app.start()
-    await broker.connect()
-    #Declare rabbitmq objects in case it does not exist
-    await broker.declare_exchange(global_new_block_exch)
-    #await broker.publish("Hi!", exchange=global_new_block_exch)
-    await broker.close()
-
+    secret_data: str
+    secret_data_receiver: str
+class MissingBlocks(BaseModel):
+    latest_hash: str
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -136,8 +122,8 @@ async def health():
     return await health_function()
 
 @app.get('/is_jwt_valid')
-async def is_jwt_valid_fast():
-    return await is_jwt_valid()
+async def is_jwt_valid_fast(Authorize: AuthJWT = Depends()):
+    return await is_jwt_valid(Authorize)
 
 @app.post('/add_block')
 async def add_block_fast(user_data: AddBlock,Authorize: AuthJWT = Depends()):
@@ -145,6 +131,18 @@ async def add_block_fast(user_data: AddBlock,Authorize: AuthJWT = Depends()):
     healthy_nodes = await get_healthy_services('rabbitmq',our_node)
     print(healthy_nodes)
     return await add_block(user_data,Authorize,healthy_nodes)
+
+@app.post('/send-missing-blocks')
+async def send_missing_blocks_fast(latest_hash: str = Form(...),Authorize: AuthJWT = Depends()):
+    return await send_missing_blocks(latest_hash,Authorize)
+
+@app.post('/change-block-location')
+async def change_block_location_fast(package_id: str = Form(...),new_location: str = Form(...),Authorize: AuthJWT = Depends()):
+    return await change_block_location(package_id,new_location,Authorize)
+
+@app.post('/change-block-owner')
+async def change_block_owner_fast(block_hash: str = Form(...),new_owner: str = Form(...),Authorize: AuthJWT = Depends()):
+    return await change_block_owner(block_hash,new_owner,Authorize)
 
 @app.post('/validate_block')
 async def validate_block_fast(user_data_to_validate: ReceiveAddBlock,Authorize: AuthJWT = Depends()):
@@ -171,43 +169,39 @@ async def jwks(request: Request):
 
 @app.on_event("startup")
 async def startup_event():
+    await faststream_app.start()
+    await broker.connect()
+    #Declare rabbitmq objects in case it does not exist
+    await broker.declare_exchange(global_new_block_exch)
+    await broker.declare_queue(node_queue)
     our_node = return_current_tailscale_domains()[0]
-    register_service(our_node,8501,"https","blockchain-server","blockchain-check", 5000, {"HTTP": "https://node-local-kali-2.tailc2844.ts.net:5000/health","Interval": "10s"})
+    if 'true' in os.getenv("VALIDATOR_NODE"):
+        register_service(our_node,8501,"https","blockchain-server","blockchain-check", 5000, {"HTTP": f"https://{our_node}:5000/health","Interval": "10s"},["validator"])
+    else:
+        register_service(our_node,8501,"https","blockchain-server","blockchain-check", 5000, {"HTTP": f"https://{our_node}:5000/health","Interval": "10s"})
+    #await find_missing_blocks()
 
 
-# Point d'entrée principal pour l'exécution de l'application
-if __name__ == "__main__":
-    time.sleep(5)
+# # Point d'entrée principal pour l'exécution de l'application
+# if __name__ == "__main__":
+#     time.sleep(5)
     
-    async def main():
-        try:
-            our_domain, our_short_domain = return_current_tailscale_domains()
-            print(f"[*] Acquired tailscale IP : {our_domain}")
-        except:
-            print("[ERROR] : Impossible to acquire tailscale IP stopping...")
-            sys.exit()
-        # params = rabbit_create_local_connections_parameters()
-        # if params == False:
-        #     print("[ERROR] : Impossible to create local connections parameters to rabbitmq stopping here....")
-        #     sys.exit()
-        # print("[*] Created local parameters")
-        # own_queue = rabbit_create_own_node_queue(params, "receive_block")
-        # if own_queue == False:
-        #     print("[ERROR] : Impossible to create local queue stopping here....")
-        #     sys.exit()
-        if 'true' in os.getenv("VALIDATOR_NODE"):
-            validator_queue = rabbit_create_own_node_queue(params, "validate_block")
-        print("[*] Created local queue(s)")
-        while True:
-            try:
-                load_blockchain_data()
-            except Exception as e:
-                print(f"[!] Error loading local blockchain : {e}")
-            try:
-                public_keys = load_verified_public_keys()
-            except Exception as e:
-                print(f"[!] Error loading local public_keys  : {e}")
-            break
-        print("[*] Noeud lancé")
-    #asyncio.run(main())
-    #uvicorn.run(app, host='0.0.0.0', port=int(os.environ.get('LISTEN_PORT', 5000)), ssl_keyfile='./keys/node_tls.key', ssl_certfile='./keys/node_tls.crt')
+#     async def main():
+#         try:
+#             our_domain, our_short_domain = return_current_tailscale_domains()
+#             print(f"[*] Acquired tailscale IP : {our_domain}")
+#         except:
+#             print("[ERROR] : Impossible to acquire tailscale IP stopping...")
+#             sys.exit()
+#         print("[*] Created local queue(s)")
+#         while True:
+#             try:
+#                 load_blockchain_data()
+#             except Exception as e:
+#                 print(f"[!] Error loading local blockchain : {e}")
+#             try:
+#                 public_keys = load_verified_public_keys()
+#             except Exception as e:
+#                 print(f"[!] Error loading local public_keys  : {e}")
+#             break
+#         print("[*] Noeud lancé")

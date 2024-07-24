@@ -25,14 +25,13 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
-      NODENAME: rabbitmq@node-local-kali
       RABBITMQ_ERLANG_COOKIE: "test"
     volumes:
-      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - /run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock
     network_mode: "host"
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status"]
-      interval: 5s
+      interval: 15s
       timeout: 20s
       retries: 5
 
@@ -42,8 +41,10 @@ services:
       dockerfile: Dockerfile-consul
     container_name: consul
     network_mode: host
+    volumes:
+      - /run/tailscale/tailscaled.sock:/run/tailscale/tailscaled.sock
     healthcheck:
-      test: ["CMD", "curl", "-f", "https://node-local-kali.tailc2844.ts.net:8501/v1/status/leader"]
+      test: ["CMD", "./consul/healthcheck.sh"]      
       interval: 10s
       timeout: 10s
       retries: 5
