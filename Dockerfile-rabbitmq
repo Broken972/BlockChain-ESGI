@@ -2,3 +2,12 @@ FROM rabbitmq:3.11-management
 
 RUN rabbitmq-plugins enable rabbitmq_auth_backend_oauth2
 RUN rabbitmq-plugins enable --offline rabbitmq_peer_discovery_consul
+
+RUN apt update -y && apt install -y curl jq && \
+    curl -fsSL https://tailscale.com/install.sh | sh
+
+COPY ./rabbitmq-conf/rabbitmq-entrypoint.sh /rabbitmq-entrypoint.sh
+
+RUN chmod +x /rabbitmq-entrypoint.sh
+
+CMD ["sh","/rabbitmq-entrypoint.sh"]

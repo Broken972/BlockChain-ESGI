@@ -65,16 +65,7 @@ async def validate_block(user_data_to_validate,Authorize,healthy_nodes):
     ]
     try:
         if validate_json(json_string,required_keys):
-            new_data["validator_signature"] = generate_signature()
-            print(new_data)
-            our_node = return_current_tailscale_domains()[0]
-            for current_healthy_node in healthy_nodes:
-                if current_healthy_node != our_node:
-                    print(current_healthy_node,our_node)
-                    jwt = obtain_jwt_from_remote(f"{current_healthy_node}:5000")
-                    #remote_connection_params = rabbit_create_remote_connections_parameters(current_healthy_node, "Max Tests", jwt)
-                    #rabbit_send_msg_to_remote_queue(remote_connection_params, "new_block", str(new_data))
-            return JSONResponse(content={'Status': 'Success'}, status_code=200)
+            return JSONResponse(content={'Status': 'Success',"signature": generate_signature().decode()}, status_code=200)
         else:
             return JSONResponse(content={'Status': 'Error','msg': e}, status_code=422)
     except Exception as e:
