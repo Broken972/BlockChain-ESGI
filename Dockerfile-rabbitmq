@@ -7,7 +7,8 @@ RUN apt update -y && apt install -y curl jq && \
     curl -fsSL https://tailscale.com/install.sh | sh
 
 COPY ./rabbitmq-conf/rabbitmq-entrypoint.sh /rabbitmq-entrypoint.sh
+COPY ./rabbitmq-conf/rabbitmq-healthcheck.sh /rabbitmq-healthcheck.sh
 
-RUN chmod +x /rabbitmq-entrypoint.sh
+RUN chmod +x /rabbitmq-entrypoint.sh /rabbitmq-healthcheck.sh
 
 CMD ["sh","/rabbitmq-entrypoint.sh"]
